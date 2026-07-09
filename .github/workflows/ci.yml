@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux,   os: ubuntu-latest  }
+          - { name: macOS,   os: macos-latest   }
+          - { name: Windows, os: windows-latest }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      # The D-Bus wire-format unit tests always run. The lifecycle test drives
+      # the real system bus / logind when one is present (the GitHub Linux
+      # runners are systemd VMs) and otherwise takes its graceful "unavailable"
+      # path, so no bus needs to be provisioned here.
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
