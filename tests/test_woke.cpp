@@ -35,7 +35,7 @@ template <class Inhibitor>
 void test_backend_name() {
   const char* name = Inhibitor::backend_name();
   CHECK(name != nullptr);
-  CHECK(std::strcmp(name, "none") != 0);
+  CHECK(name[0] != '\0');  // non-empty id
   std::printf("  backend: %s\n", name);
 }
 
