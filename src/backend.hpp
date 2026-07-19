@@ -2,13 +2,13 @@
 // implementation of make_backend(). This header is not installed and is not
 // part of the public API.
 
-#ifndef NOSLEEP_SRC_BACKEND_HPP
-#define NOSLEEP_SRC_BACKEND_HPP
+#ifndef WOKE_SRC_BACKEND_HPP
+#define WOKE_SRC_BACKEND_HPP
 
 #include <memory>
 #include <string>
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 class Backend {
 public:
@@ -39,10 +39,10 @@ public:
   std::string label = who;
   if (!who.empty() && !reason.empty()) label += ": ";
   label += reason;
-  if (label.empty()) label = "nosleep";
+  if (label.empty()) label = "woke";
   return label;
 }
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail
 
-#endif  // NOSLEEP_SRC_BACKEND_HPP
+#endif  // WOKE_SRC_BACKEND_HPP

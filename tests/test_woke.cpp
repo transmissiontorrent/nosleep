@@ -1,4 +1,4 @@
-// Public-API tests for nosleep, driven by CTest. Each test case is selected by
+// Public-API tests for woke, driven by CTest. Each test case is selected by
 // the first command-line argument; the process exits non-zero on failure.
 
 #include <cstdio>
@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-#include "nosleep/nosleep.hpp"
+#include "woke/woke.hpp"
 #include "test_util.hpp"
 
 namespace {
@@ -21,26 +21,26 @@ constexpr bool kInhibitMustSucceed = false;
 #endif
 
 void test_backend_name() {
-  const char* name = nosleep::Inhibitor::backend_name();
+  const char* name = woke::Inhibitor::backend_name();
   CHECK(name != nullptr);
   CHECK(std::strcmp(name, "none") != 0);
   std::printf("  backend: %s\n", name);
 }
 
 void test_construct_destruct() {
-  nosleep::Inhibitor inhibitor;
+  woke::Inhibitor inhibitor;
   CHECK(!inhibitor.active());
 }
 
 void test_uninhibit_without_inhibit() {
-  nosleep::Inhibitor inhibitor;
+  woke::Inhibitor inhibitor;
   inhibitor.uninhibit();  // must be a safe no-op
   CHECK(!inhibitor.active());
 }
 
 void test_inhibit_lifecycle() {
-  nosleep::Inhibitor inhibitor;
-  const bool ok = inhibitor.inhibit("nosleep_tests", "nosleep test");
+  woke::Inhibitor inhibitor;
+  const bool ok = inhibitor.inhibit("woke_tests", "woke test");
 
   if (kInhibitMustSucceed) {
     CHECK(ok);
@@ -57,11 +57,11 @@ void test_inhibit_lifecycle() {
 }
 
 void test_reinhibit() {
-  nosleep::Inhibitor inhibitor;
-  const bool first = inhibitor.inhibit("nosleep_tests", "first");
+  woke::Inhibitor inhibitor;
+  const bool first = inhibitor.inhibit("woke_tests", "first");
   inhibitor.uninhibit();
   CHECK(!inhibitor.active());
-  const bool second = inhibitor.inhibit("nosleep_tests", "second");
+  const bool second = inhibitor.inhibit("woke_tests", "second");
 
   if (kInhibitMustSucceed) {
     CHECK(first);
@@ -72,11 +72,11 @@ void test_reinhibit() {
 }
 
 void test_move_semantics() {
-  nosleep::Inhibitor source;
-  source.inhibit("nosleep_tests", "move");
+  woke::Inhibitor source;
+  source.inhibit("woke_tests", "move");
   const bool was_active = source.active();
 
-  nosleep::Inhibitor moved(std::move(source));
+  woke::Inhibitor moved(std::move(source));
   CHECK(moved.active() == was_active);
 
   // The moved-from object must be safe to use.

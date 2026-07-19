@@ -12,7 +12,7 @@
 
 namespace {
 
-using namespace nosleep::detail;
+using namespace woke::detail;
 
 void test_build_hello() {
   const auto msg =

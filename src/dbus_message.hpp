@@ -11,15 +11,15 @@
 // in the received header. See the D-Bus specification, section "Message
 // Protocol", for the wire format.
 
-#ifndef NOSLEEP_SRC_DBUS_MESSAGE_HPP
-#define NOSLEEP_SRC_DBUS_MESSAGE_HPP
+#ifndef WOKE_SRC_DBUS_MESSAGE_HPP
+#define WOKE_SRC_DBUS_MESSAGE_HPP
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 enum class MsgType : uint8_t {
   Invalid = 0,
@@ -76,6 +76,6 @@ bool read_uint32(const std::vector<uint8_t>& body, size_t offset,
 bool read_string(const std::vector<uint8_t>& body, size_t offset,
                  bool little_endian, std::string& out, size_t* next = nullptr);
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail
 
-#endif  // NOSLEEP_SRC_DBUS_MESSAGE_HPP
+#endif  // WOKE_SRC_DBUS_MESSAGE_HPP

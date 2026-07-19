@@ -1,3 +1,3 @@
-add_executable(nosleep_example example.cpp)
-target_link_libraries(nosleep_example PRIVATE nosleep)
-target_compile_features(nosleep_example PRIVATE cxx_std_17)
+add_executable(woke_example example.cpp)
+target_link_libraries(woke_example PRIVATE woke)
+target_compile_features(woke_example PRIVATE cxx_std_17)

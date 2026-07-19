@@ -1,9 +1,9 @@
-// Minimal shared test harness for the nosleep CTest executables. Each test case
+// Minimal shared test harness for the woke CTest executables. Each test case
 // is selected by argv[1]; CHECK records a failure; test_report() prints the
 // result and yields the process exit code.
 
-#ifndef NOSLEEP_TESTS_TEST_UTIL_HPP
-#define NOSLEEP_TESTS_TEST_UTIL_HPP
+#ifndef WOKE_TESTS_TEST_UTIL_HPP
+#define WOKE_TESTS_TEST_UTIL_HPP
 
 #include <cstdio>
 
@@ -27,4 +27,4 @@ inline int test_report(const char* name) {
   return 0;
 }
 
-#endif  // NOSLEEP_TESTS_TEST_UTIL_HPP
+#endif  // WOKE_TESTS_TEST_UTIL_HPP

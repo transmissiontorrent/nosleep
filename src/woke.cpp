@@ -1,10 +1,10 @@
-#include "nosleep/nosleep.hpp"
+#include "woke/woke.hpp"
 
 #include <utility>
 
 #include "backend.hpp"
 
-namespace nosleep {
+namespace woke {
 
 Inhibitor::Inhibitor() : impl_(detail::make_backend()) {}
 
@@ -32,4 +32,4 @@ const char* Inhibitor::backend_name() noexcept {
   return detail::backend_name();
 }
 
-}  // namespace nosleep
+}  // namespace woke

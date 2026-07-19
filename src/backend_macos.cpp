@@ -9,7 +9,7 @@
 
 #include "backend.hpp"
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 namespace {
 
@@ -59,4 +59,4 @@ std::unique_ptr<Backend> make_backend() {
 
 const char* backend_name() { return "macos"; }
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail

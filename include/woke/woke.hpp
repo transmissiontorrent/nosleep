@@ -1,6 +1,6 @@
-// nosleep - a tiny, dependency-free library to keep a desktop machine awake.
+// woke - a tiny, dependency-free library to keep a desktop machine awake.
 //
-// The library exposes a single RAII type, nosleep::Inhibitor.
+// The library exposes a single RAII type, woke::Inhibitor.
 // While an inhibitor is active, the OS is asked not to enter automatic sleep.
 // Destroying the inhibitor or calling uninhibit() restores normal behavior.
 //
@@ -15,13 +15,13 @@
 // The library has no third-party dependencies; each backend uses only the
 // facilities provided by the host operating system.
 
-#ifndef NOSLEEP_NOSLEEP_HPP
-#define NOSLEEP_NOSLEEP_HPP
+#ifndef WOKE_WOKE_HPP
+#define WOKE_WOKE_HPP
 
 #include <memory>
 #include <string>
 
-namespace nosleep {
+namespace woke {
 
 namespace detail {
 class Backend;  // platform-specific impl in the backend_*.cpp files
@@ -74,6 +74,6 @@ private:
   std::unique_ptr<detail::Backend> impl_;
 };
 
-}  // namespace nosleep
+}  // namespace woke
 
-#endif  // NOSLEEP_NOSLEEP_HPP
+#endif  // WOKE_WOKE_HPP

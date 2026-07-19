@@ -33,7 +33,7 @@
 #include "backend.hpp"
 #include "dbus_message.hpp"
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 namespace {
 
@@ -336,7 +336,7 @@ public:
     }
 
     // login1.Manager.Inhibit("sleep", who, why, "block") -> file descriptor.
-    const std::string who_field = who.empty() ? "nosleep" : who;
+    const std::string who_field = who.empty() ? "woke" : who;
     const auto call = build_method_call(
         2, "org.freedesktop.login1", "/org/freedesktop/login1",
         "org.freedesktop.login1.Manager", "Inhibit", "ssss",
@@ -384,4 +384,4 @@ std::unique_ptr<Backend> make_backend() {
 
 const char* backend_name() { return "linux-logind"; }
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail

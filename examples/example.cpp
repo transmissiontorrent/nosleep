@@ -1,7 +1,7 @@
-// A tiny demonstration of the nosleep API.
+// A tiny demonstration of the woke API.
 //
 // Usage:
-//   nosleep_example [seconds]
+//   woke_example [seconds]
 //
 // Holds a sleep inhibitor for the requested number of seconds (default 10),
 // then releases it. Pass 0 to just probe whether inhibition is available.
@@ -12,16 +12,16 @@
 #include <string>
 #include <thread>
 
-#include "nosleep/nosleep.hpp"
+#include "woke/woke.hpp"
 
 int main(int argc, char** argv) {
   int seconds = 10;
   if (argc > 1) seconds = std::atoi(argv[1]);
 
-  std::printf("nosleep backend: %s\n", nosleep::Inhibitor::backend_name());
+  std::printf("woke backend: %s\n", woke::Inhibitor::backend_name());
 
-  nosleep::Inhibitor inhibitor;
-  if (!inhibitor.inhibit("nosleep_example", "nosleep example is running")) {
+  woke::Inhibitor inhibitor;
+  if (!inhibitor.inhibit("woke_example", "woke example is running")) {
     std::printf("Could not inhibit sleep in this environment.\n");
     return 1;
   }

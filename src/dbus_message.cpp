@@ -1,6 +1,6 @@
 #include "dbus_message.hpp"
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 namespace {
 
@@ -239,4 +239,4 @@ bool read_string(const std::vector<uint8_t>& body, size_t offset,
   return true;
 }
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail

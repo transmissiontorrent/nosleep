@@ -3,9 +3,9 @@
 # individually.
 
 # ---- public API tests ----------------------------------------------------
-add_executable(nosleep_tests test_nosleep.cpp)
-target_link_libraries(nosleep_tests PRIVATE nosleep)
-target_compile_features(nosleep_tests PRIVATE cxx_std_17)
+add_executable(woke_tests test_woke.cpp)
+target_link_libraries(woke_tests PRIVATE woke)
+target_compile_features(woke_tests PRIVATE cxx_std_17)
 
 set(_api_cases
   backend_name
@@ -15,7 +15,7 @@ set(_api_cases
   reinhibit
   move_semantics)
 foreach(case IN LISTS _api_cases)
-  add_test(NAME api.${case} COMMAND nosleep_tests ${case})
+  add_test(NAME api.${case} COMMAND woke_tests ${case})
 endforeach()
 
 # ---- Linux D-Bus marshalling unit tests ----------------------------------

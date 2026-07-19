@@ -1,4 +1,4 @@
-# nosleep
+# woke
 
 A tiny, dependency-free C++ library to keep a desktop machine awake — it inhibits
 automatic sleep / suspend / hibernation and releases the inhibition on request.
@@ -10,13 +10,13 @@ automatic sleep / suspend / hibernation and releases the inhibition on request.
 
 ## API
 
-The entire public API is the RAII type `nosleep::Inhibitor`:
+The entire public API is the RAII type `woke::Inhibitor`:
 
 ```cpp
-#include <nosleep/nosleep.hpp>
+#include <woke/woke.hpp>
 
 int main() {
-    nosleep::Inhibitor inhibitor;
+    woke::Inhibitor inhibitor;
 
     if (inhibitor.inhibit("MyApp", "Encoding a video")) {
         // ... do work that should not be interrupted by sleep ...
@@ -72,23 +72,23 @@ ctest --test-dir build --output-on-failure
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `NOSLEEP_BUILD_TESTS` | `ON` | Build the CTest suite. |
-| `NOSLEEP_BUILD_EXAMPLES` | `ON` | Build the `nosleep_example` demo. |
+| `WOKE_BUILD_TESTS` | `ON` | Build the CTest suite. |
+| `WOKE_BUILD_EXAMPLES` | `ON` | Build the `woke_example` demo. |
 
 ### Using it from CMake
 
-`nosleep` can be vendored (e.g. via `add_subdirectory` or `FetchContent`) and
+`woke` can be vendored (e.g. via `add_subdirectory` or `FetchContent`) and
 linked through the exported alias:
 
 ```cmake
-add_subdirectory(nosleep)
-target_link_libraries(my_app PRIVATE nosleep::nosleep)
+add_subdirectory(woke)
+target_link_libraries(my_app PRIVATE woke::woke)
 ```
 
 ## Try the example
 
 ```sh
-./build/examples/nosleep_example 15   # stay awake for 15 seconds
+./build/examples/woke_example 15   # stay awake for 15 seconds
 ```
 
 ## License
