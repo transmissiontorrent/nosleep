@@ -126,12 +126,16 @@ bool parse_bus_address(const std::string& address, std::string& path,
   return false;
 }
 
-void resolve_system_bus_address(std::string& path, bool& is_abstract) {
+// Resolve the system-bus socket path. If DBUS_SYSTEM_BUS_ADDRESS is set, honor
+// it or fail -- don't silently fall back to the default socket (a different
+// bus). Returns false if a configured address has no usable unix socket.
+bool resolve_system_bus_address(std::string& path, bool& is_abstract) {
   if (const char* env = std::getenv("DBUS_SYSTEM_BUS_ADDRESS")) {
-    if (parse_bus_address(env, path, is_abstract)) return;
+    return parse_bus_address(env, path, is_abstract);
   }
   path = "/var/run/dbus/system_bus_socket";
   is_abstract = false;
+  return true;
 }
 
 int connect_unix(const std::string& path, bool is_abstract) {
@@ -319,7 +323,7 @@ public:
 
     std::string path;
     bool is_abstract = false;
-    resolve_system_bus_address(path, is_abstract);
+    if (!resolve_system_bus_address(path, is_abstract)) return false;
 
     Conn conn;
     conn.fd = connect_unix(path, is_abstract);
