@@ -88,6 +88,21 @@ void test_reinhibit(bool must_succeed) {
 }
 
 template <class Inhibitor>
+void test_idempotent(bool must_succeed) {
+  Inhibitor inhibitor;
+  const bool first = inhibitor.inhibit("woke_tests", "first");
+  const bool second = inhibitor.inhibit("woke_tests", "second");  // while active
+
+  CHECK(second == first);  // a second inhibit while active repeats the result
+  if (must_succeed) {
+    CHECK(inhibitor.active());
+  }
+
+  inhibitor.uninhibit();  // one release must fully release (no second request)
+  CHECK(!inhibitor.active());
+}
+
+template <class Inhibitor>
 void test_move_semantics() {
   Inhibitor source;
   source.inhibit("woke_tests", "move");
@@ -132,12 +147,14 @@ int main(int argc, char** argv) {
       {"sleep_uninhibit_without_inhibit", [] { test_uninhibit_without_inhibit<Sleep>(); }},
       {"sleep_lifecycle", [] { test_lifecycle<Sleep>(kSleepMustSucceed); }},
       {"sleep_reinhibit", [] { test_reinhibit<Sleep>(kSleepMustSucceed); }},
+      {"sleep_idempotent", [] { test_idempotent<Sleep>(kSleepMustSucceed); }},
       {"sleep_move_semantics", [] { test_move_semantics<Sleep>(); }},
       {"nap_backend_name", [] { test_backend_name<Nap>(); }},
       {"nap_construct_destruct", [] { test_construct_destruct<Nap>(); }},
       {"nap_uninhibit_without_inhibit", [] { test_uninhibit_without_inhibit<Nap>(); }},
       {"nap_lifecycle", [] { test_lifecycle<Nap>(kNapMustSucceed); }},
       {"nap_reinhibit", [] { test_reinhibit<Nap>(kNapMustSucceed); }},
+      {"nap_idempotent", [] { test_idempotent<Nap>(kNapMustSucceed); }},
       {"nap_move_semantics", [] { test_move_semantics<Nap>(); }},
       {"nap_independence", [] { test_nap_independence(); }},
   });
