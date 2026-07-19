@@ -24,8 +24,15 @@ public:
     // application identity and the reason into one label.
     const std::string name = combine_label(who, reason);
 
+    // The label is cosmetic (it shows in `pmset -g assertions`), so a label
+    // that isn't valid UTF-8 must not prevent the assertion: fall back to the
+    // library name, matching the nap backend.
     CFStringRef cf_name = CFStringCreateWithCString(
         kCFAllocatorDefault, name.c_str(), kCFStringEncodingUTF8);
+    if (cf_name == nullptr) {
+      cf_name = CFStringCreateWithCString(kCFAllocatorDefault, "woke",
+                                          kCFStringEncodingUTF8);
+    }
     if (cf_name == nullptr) return false;
 
     const IOReturn result = IOPMAssertionCreateWithName(
