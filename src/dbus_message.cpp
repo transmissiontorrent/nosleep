@@ -199,8 +199,8 @@ bool parse_message(const uint8_t* d, size_t len, ParsedMessage& out,
         break;
       }
       default:
-        // A header field of a type we don't model — we can't compute its length
-        // safely, so give up rather than misparse.
+        // A header field of a type we don't model.
+        // We can't compute its length safely, so give up rather than misparse.
         return false;
     }
   }
