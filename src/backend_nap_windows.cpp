@@ -7,10 +7,11 @@
 // It affects only this process and never the machine's sleep policy.
 //
 // The API sets a *process-global* policy rather than handing back a per-object
-// handle, so concurrent NapInhibitors are reference-counted here: the policy is
-// applied on the first and cleared on the last. The call needs Windows 10
-// 1709+; on older systems SetProcessInformation() fails and inhibit() returns
-// false.
+// handle, so concurrent NapInhibitors are reference-counted here. Both the
+// count transition and the OS call are done under one mutex, so the policy
+// stays consistent with the count under concurrent inhibit/uninhibit: while the
+// count is > 0 the opt-out is applied. The call needs Windows 10 1709+; on
+// older systems SetProcessInformation() fails and inhibit() returns false.
 
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0A00  // Windows 10
@@ -24,7 +25,7 @@
 
 #include <windows.h>
 
-#include <atomic>
+#include <mutex>
 
 #include "backend.hpp"
 
@@ -32,9 +33,11 @@ namespace woke::detail {
 
 namespace {
 
-// Live NapInhibitors holding the opt-out. The OS policy is process-wide, so it
-// is applied on the 0->1 transition and cleared on 1->0.
-std::atomic<int> g_nap_refcount{0};
+// Process-global refcount + the mutex that guards both it and the OS call.
+// Invariant (held under the mutex): g_nap_refcount > 0 iff the opt-out is
+// applied, because the count only rises past 0 after a successful apply.
+std::mutex g_nap_mutex;
+int g_nap_refcount = 0;
 
 bool apply_throttling_policy(bool opt_out) {
   PROCESS_POWER_THROTTLING_STATE state = {};
@@ -51,20 +54,20 @@ public:
 
   bool inhibit(const std::string& /*who*/, const std::string& /*reason*/) override {
     if (active_) return true;
-    if (g_nap_refcount.fetch_add(1) == 0) {
-      if (!apply_throttling_policy(true)) {
-        g_nap_refcount.fetch_sub(1);
-        return false;
-      }
+    const std::lock_guard<std::mutex> lock(g_nap_mutex);
+    if (g_nap_refcount == 0 && !apply_throttling_policy(true)) {
+      return false;  // stay inactive; don't take a reference
     }
+    ++g_nap_refcount;
     active_ = true;
     return true;
   }
 
   void uninhibit() noexcept override {
     if (!active_) return;
+    const std::lock_guard<std::mutex> lock(g_nap_mutex);
     active_ = false;
-    if (g_nap_refcount.fetch_sub(1) == 1) {
+    if (--g_nap_refcount == 0) {
       apply_throttling_policy(false);
     }
   }
