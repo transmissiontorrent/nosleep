@@ -235,7 +235,6 @@ bool conn_fill(Conn& c) {
     n = ::recvmsg(c.fd, &msg, 0);
   } while (n < 0 && errno == EINTR);
   if (n <= 0) return false;
-  if (msg.msg_flags & MSG_CTRUNC) return false;  // control buffer overflowed
 
   for (cmsghdr* cm = CMSG_FIRSTHDR(&msg); cm != nullptr;
        cm = CMSG_NXTHDR(&msg, cm)) {
@@ -248,6 +247,11 @@ bool conn_fill(Conn& c) {
       }
     }
   }
+
+  // If the control buffer overflowed, the kernel still installed the fds that
+  // fit -- now recorded above so ~Conn closes them -- but a truncated reply
+  // can't be trusted, so fail.
+  if (msg.msg_flags & MSG_CTRUNC) return false;
 
   c.buf.insert(c.buf.end(), bytes, bytes + static_cast<size_t>(n));
   return true;
