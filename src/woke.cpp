@@ -6,30 +6,57 @@
 
 namespace woke {
 
-Inhibitor::Inhibitor() : impl_(detail::make_backend()) {}
+// ---- SleepInhibitor (system sleep) ---------------------------------------
+
+SleepInhibitor::SleepInhibitor() : impl_(detail::make_sleep_backend()) {}
 
 // Out-of-line so that detail::Backend need only be complete here, keeping the
 // public header free of platform details. The backend's own destructor is
 // responsible for releasing any held request.
-Inhibitor::~Inhibitor() = default;
+SleepInhibitor::~SleepInhibitor() = default;
 
-Inhibitor::Inhibitor(Inhibitor&&) noexcept = default;
-Inhibitor& Inhibitor::operator=(Inhibitor&&) noexcept = default;
+SleepInhibitor::SleepInhibitor(SleepInhibitor&&) noexcept = default;
+SleepInhibitor& SleepInhibitor::operator=(SleepInhibitor&&) noexcept = default;
 
-bool Inhibitor::inhibit(const std::string& who, const std::string& reason) {
+bool SleepInhibitor::inhibit(const std::string& who, const std::string& reason) {
   return impl_ ? impl_->inhibit(who, reason) : false;
 }
 
-void Inhibitor::uninhibit() noexcept {
+void SleepInhibitor::uninhibit() noexcept {
   if (impl_) impl_->uninhibit();
 }
 
-bool Inhibitor::active() const noexcept {
+bool SleepInhibitor::active() const noexcept {
   return impl_ && impl_->active();
 }
 
-const char* Inhibitor::backend_name() noexcept {
-  return detail::backend_name();
+const char* SleepInhibitor::backend_name() noexcept {
+  return detail::sleep_backend_name();
+}
+
+// ---- NapInhibitor (process throttling / App Nap) -------------------------
+
+NapInhibitor::NapInhibitor() : impl_(detail::make_nap_backend()) {}
+
+NapInhibitor::~NapInhibitor() = default;
+
+NapInhibitor::NapInhibitor(NapInhibitor&&) noexcept = default;
+NapInhibitor& NapInhibitor::operator=(NapInhibitor&&) noexcept = default;
+
+bool NapInhibitor::inhibit(const std::string& who, const std::string& reason) {
+  return impl_ ? impl_->inhibit(who, reason) : false;
+}
+
+void NapInhibitor::uninhibit() noexcept {
+  if (impl_) impl_->uninhibit();
+}
+
+bool NapInhibitor::active() const noexcept {
+  return impl_ && impl_->active();
+}
+
+const char* NapInhibitor::backend_name() noexcept {
+  return detail::nap_backend_name();
 }
 
 }  // namespace woke

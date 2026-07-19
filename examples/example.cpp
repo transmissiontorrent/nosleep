@@ -3,8 +3,8 @@
 // Usage:
 //   woke_example [seconds]
 //
-// Holds a sleep inhibitor for the requested number of seconds (default 10),
-// then releases it. Pass 0 to just probe whether inhibition is available.
+// Holds a sleep inhibitor *and* a nap inhibitor for the requested number of
+// seconds (default 10), then releases them. Pass 0 to just probe availability.
 
 #include <chrono>
 #include <cstdio>
@@ -18,16 +18,23 @@ int main(int argc, char** argv) {
   int seconds = 10;
   if (argc > 1) seconds = std::atoi(argv[1]);
 
-  std::printf("woke backend: %s\n", woke::Inhibitor::backend_name());
+  std::printf("woke sleep backend: %s\n", woke::SleepInhibitor::backend_name());
+  std::printf("woke nap backend:   %s\n", woke::NapInhibitor::backend_name());
 
-  woke::Inhibitor inhibitor;
-  if (!inhibitor.inhibit("woke_example", "woke example is running")) {
+  woke::SleepInhibitor sleep;
+  if (!sleep.inhibit("woke_example", "woke example is running")) {
     std::printf("Could not inhibit sleep in this environment.\n");
     return 1;
   }
 
-  std::printf("Sleep is inhibited (active=%s).\n",
-              inhibitor.active() ? "true" : "false");
+  // Keep this process responsive (un-throttled) while it works. This is a no-op
+  // on Linux, so ignore its return value.
+  woke::NapInhibitor nap;
+  nap.inhibit("woke_example", "woke example is running");
+
+  std::printf("Sleep inhibited (active=%s), nap inhibited (active=%s).\n",
+              sleep.active() ? "true" : "false",
+              nap.active() ? "true" : "false");
 
   for (int remaining = seconds; remaining > 0; --remaining) {
     std::printf("\r  staying awake for %d more second(s)... ", remaining);
@@ -36,8 +43,10 @@ int main(int argc, char** argv) {
   }
   std::printf("\n");
 
-  inhibitor.uninhibit();
-  std::printf("Sleep inhibitor released (active=%s).\n",
-              inhibitor.active() ? "true" : "false");
+  nap.uninhibit();
+  sleep.uninhibit();
+  std::printf("Released (sleep active=%s, nap active=%s).\n",
+              sleep.active() ? "true" : "false",
+              nap.active() ? "true" : "false");
   return 0;
 }

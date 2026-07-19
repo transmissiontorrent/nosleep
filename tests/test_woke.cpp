@@ -1,9 +1,12 @@
 // Public-API tests for woke, driven by CTest. Each test case is selected by
 // the first command-line argument; the process exits non-zero on failure.
+//
+// SleepInhibitor and NapInhibitor share an identical shape, so the common
+// lifecycle checks are written once as function templates and instantiated for
+// each type from the dispatch table in main().
 
 #include <cstdio>
 #include <cstring>
-#include <string>
 #include <utility>
 
 #include "woke/woke.hpp"
@@ -11,38 +14,50 @@
 
 namespace {
 
-// On Windows and macOS the OS call is expected to succeed even in a headless
-// CI environment. On Linux success depends on a reachable inhibitor service, so
-// the lifecycle test tolerates "unavailable".
+// SleepInhibitor's OS call is expected to succeed on Windows and macOS even in
+// a headless CI environment. On Linux success needs a reachable logind, so the
+// sleep lifecycle tolerates "unavailable".
 #if defined(_WIN32) || defined(__APPLE__)
-constexpr bool kInhibitMustSucceed = true;
+constexpr bool kSleepMustSucceed = true;
 #else
-constexpr bool kInhibitMustSucceed = false;
+constexpr bool kSleepMustSucceed = false;
 #endif
 
+// The nap inhibitor is a no-op success on Linux and reliable on macOS. On
+// Windows it needs Windows 10 1709+, so tolerate an "unavailable" result.
+#if defined(_WIN32)
+constexpr bool kNapMustSucceed = false;
+#else
+constexpr bool kNapMustSucceed = true;
+#endif
+
+template <class Inhibitor>
 void test_backend_name() {
-  const char* name = woke::Inhibitor::backend_name();
+  const char* name = Inhibitor::backend_name();
   CHECK(name != nullptr);
   CHECK(std::strcmp(name, "none") != 0);
   std::printf("  backend: %s\n", name);
 }
 
+template <class Inhibitor>
 void test_construct_destruct() {
-  woke::Inhibitor inhibitor;
+  Inhibitor inhibitor;
   CHECK(!inhibitor.active());
 }
 
+template <class Inhibitor>
 void test_uninhibit_without_inhibit() {
-  woke::Inhibitor inhibitor;
+  Inhibitor inhibitor;
   inhibitor.uninhibit();  // must be a safe no-op
   CHECK(!inhibitor.active());
 }
 
-void test_inhibit_lifecycle() {
-  woke::Inhibitor inhibitor;
+template <class Inhibitor>
+void test_lifecycle(bool must_succeed) {
+  Inhibitor inhibitor;
   const bool ok = inhibitor.inhibit("woke_tests", "woke test");
 
-  if (kInhibitMustSucceed) {
+  if (must_succeed) {
     CHECK(ok);
     CHECK(inhibitor.active());
   } else if (!ok) {
@@ -56,14 +71,15 @@ void test_inhibit_lifecycle() {
   CHECK(!inhibitor.active());
 }
 
-void test_reinhibit() {
-  woke::Inhibitor inhibitor;
+template <class Inhibitor>
+void test_reinhibit(bool must_succeed) {
+  Inhibitor inhibitor;
   const bool first = inhibitor.inhibit("woke_tests", "first");
   inhibitor.uninhibit();
   CHECK(!inhibitor.active());
   const bool second = inhibitor.inhibit("woke_tests", "second");
 
-  if (kInhibitMustSucceed) {
+  if (must_succeed) {
     CHECK(first);
     CHECK(second);
     CHECK(inhibitor.active());
@@ -71,47 +87,57 @@ void test_reinhibit() {
   // Destructor must release cleanly regardless.
 }
 
+template <class Inhibitor>
 void test_move_semantics() {
-  woke::Inhibitor source;
+  Inhibitor source;
   source.inhibit("woke_tests", "move");
   const bool was_active = source.active();
 
-  woke::Inhibitor moved(std::move(source));
+  Inhibitor moved(std::move(source));
   CHECK(moved.active() == was_active);
 
-  // The moved-from object must be safe to use.
-  source.uninhibit();
+  source.uninhibit();  // moved-from object must be safe to use
   CHECK(!source.active());
 
   moved.uninhibit();
   CHECK(!moved.active());
 }
 
+// Nap-only: concurrent inhibitors must compose. The Windows backend ref-counts a
+// process-global policy, so the process stays un-throttled until the last
+// inhibitor releases.
+void test_nap_compose() {
+  woke::NapInhibitor a;
+  woke::NapInhibitor b;
+  a.inhibit("woke_tests", "a");
+  b.inhibit("woke_tests", "b");
+
+  a.uninhibit();
+  if (kNapMustSucceed) {
+    CHECK(b.active());
+  }
+  b.uninhibit();
+  CHECK(!b.active());
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
-    std::printf("usage: %s <case>\n", argv[0]);
-    return 2;
-  }
-  const std::string test = argv[1];
-
-  if (test == "backend_name") {
-    test_backend_name();
-  } else if (test == "construct_destruct") {
-    test_construct_destruct();
-  } else if (test == "uninhibit_without_inhibit") {
-    test_uninhibit_without_inhibit();
-  } else if (test == "inhibit_lifecycle") {
-    test_inhibit_lifecycle();
-  } else if (test == "reinhibit") {
-    test_reinhibit();
-  } else if (test == "move_semantics") {
-    test_move_semantics();
-  } else {
-    std::printf("unknown test case: %s\n", test.c_str());
-    return 2;
-  }
-
-  return test_report(test.c_str());
+  using Sleep = woke::SleepInhibitor;
+  using Nap = woke::NapInhibitor;
+  return run_test(argc, argv, {
+      {"sleep_backend_name", [] { test_backend_name<Sleep>(); }},
+      {"sleep_construct_destruct", [] { test_construct_destruct<Sleep>(); }},
+      {"sleep_uninhibit_without_inhibit", [] { test_uninhibit_without_inhibit<Sleep>(); }},
+      {"sleep_lifecycle", [] { test_lifecycle<Sleep>(kSleepMustSucceed); }},
+      {"sleep_reinhibit", [] { test_reinhibit<Sleep>(kSleepMustSucceed); }},
+      {"sleep_move_semantics", [] { test_move_semantics<Sleep>(); }},
+      {"nap_backend_name", [] { test_backend_name<Nap>(); }},
+      {"nap_construct_destruct", [] { test_construct_destruct<Nap>(); }},
+      {"nap_uninhibit_without_inhibit", [] { test_uninhibit_without_inhibit<Nap>(); }},
+      {"nap_lifecycle", [] { test_lifecycle<Nap>(kNapMustSucceed); }},
+      {"nap_reinhibit", [] { test_reinhibit<Nap>(kNapMustSucceed); }},
+      {"nap_move_semantics", [] { test_move_semantics<Nap>(); }},
+      {"nap_compose", [] { test_nap_compose(); }},
+  });
 }

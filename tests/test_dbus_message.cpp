@@ -128,28 +128,12 @@ void test_body_alignment() {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
-    std::printf("usage: %s <case>\n", argv[0]);
-    return 2;
-  }
-  const std::string test = argv[1];
-
-  if (test == "build_hello") {
-    test_build_hello();
-  } else if (test == "roundtrip_inhibit") {
-    test_roundtrip_inhibit();
-  } else if (test == "roundtrip_login1") {
-    test_roundtrip_login1();
-  } else if (test == "read_uint32") {
-    test_read_uint32();
-  } else if (test == "parse_incomplete") {
-    test_parse_incomplete();
-  } else if (test == "body_alignment") {
-    test_body_alignment();
-  } else {
-    std::printf("unknown test case: %s\n", test.c_str());
-    return 2;
-  }
-
-  return test_report(test.c_str());
+  return run_test(argc, argv, {
+      {"build_hello", [] { test_build_hello(); }},
+      {"roundtrip_inhibit", [] { test_roundtrip_inhibit(); }},
+      {"roundtrip_login1", [] { test_roundtrip_login1(); }},
+      {"read_uint32", [] { test_read_uint32(); }},
+      {"parse_incomplete", [] { test_parse_incomplete(); }},
+      {"body_alignment", [] { test_body_alignment(); }},
+  });
 }

@@ -7,16 +7,20 @@ add_executable(woke_tests test_woke.cpp)
 target_link_libraries(woke_tests PRIVATE woke)
 target_compile_features(woke_tests PRIVATE cxx_std_17)
 
-set(_api_cases
+# SleepInhibitor and NapInhibitor share a test matrix, registered as sleep.*
+# and nap.*; nap adds one composition case for its ref-counted backend.
+set(_inhibitor_cases
   backend_name
   construct_destruct
   uninhibit_without_inhibit
-  inhibit_lifecycle
+  lifecycle
   reinhibit
   move_semantics)
-foreach(case IN LISTS _api_cases)
-  add_test(NAME api.${case} COMMAND woke_tests ${case})
+foreach(case IN LISTS _inhibitor_cases)
+  add_test(NAME sleep.${case} COMMAND woke_tests sleep_${case})
+  add_test(NAME nap.${case}   COMMAND woke_tests nap_${case})
 endforeach()
+add_test(NAME nap.compose COMMAND woke_tests nap_compose)
 
 # ---- Linux D-Bus marshalling unit tests ----------------------------------
 # These exercise the wire-format code directly (it can't be reached through the

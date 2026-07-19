@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(woke
-  VERSION 0.1.0
-  DESCRIPTION "Cross-platform library to inhibit desktop sleep / hibernation"
+  VERSION 0.2.0
+  DESCRIPTION "Cross-platform library to keep a desktop awake and responsive"
   LANGUAGES CXX)
 
 # ---------------------------------------------------------------------------
@@ -12,15 +12,24 @@ option(WOKE_BUILD_TESTS    "Build the woke test suite"  ON)
 option(WOKE_BUILD_EXAMPLES "Build the woke example app" ON)
 
 # ---------------------------------------------------------------------------
-# Select the platform backend
+# Select the platform backends (one sleep + one nap backend per platform)
 # ---------------------------------------------------------------------------
 set(_woke_platform_sources)
 if(WIN32)
-  list(APPEND _woke_platform_sources src/backend_windows.cpp)
+  list(APPEND _woke_platform_sources
+    src/backend_sleep_windows.cpp
+    src/backend_nap_windows.cpp)
 elseif(APPLE)
-  list(APPEND _woke_platform_sources src/backend_macos.cpp)
+  # The nap backend is Objective-C++ (NSProcessInfo), so enable OBJC++.
+  enable_language(OBJCXX)
+  list(APPEND _woke_platform_sources
+    src/backend_sleep_macos.cpp
+    src/backend_nap_macos.mm)
 elseif(UNIX)
-  list(APPEND _woke_platform_sources src/backend_linux.cpp src/dbus_message.cpp)
+  list(APPEND _woke_platform_sources
+    src/backend_sleep_linux.cpp
+    src/dbus_message.cpp
+    src/backend_nap_linux.cpp)
 else()
   message(FATAL_ERROR "woke: unsupported target platform")
 endif()
@@ -48,7 +57,13 @@ set_target_properties(woke PROPERTIES
 if(APPLE)
   find_library(IOKIT_LIBRARY IOKit REQUIRED)
   find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED)
-  target_link_libraries(woke PRIVATE ${IOKIT_LIBRARY} ${COREFOUNDATION_LIBRARY})
+  find_library(FOUNDATION_LIBRARY Foundation REQUIRED)
+  target_link_libraries(woke PRIVATE
+    ${IOKIT_LIBRARY} ${COREFOUNDATION_LIBRARY} ${FOUNDATION_LIBRARY})
+  # The macOS nap backend manages the NSProcessInfo activity token with manual
+  # retain/release, so it must be compiled without ARC.
+  set_source_files_properties(src/backend_nap_macos.mm PROPERTIES
+    COMPILE_OPTIONS "-fno-objc-arc")
 endif()
 
 if(MSVC)

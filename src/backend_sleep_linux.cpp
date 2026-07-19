@@ -1,4 +1,4 @@
-// Linux backend: systemd-logind "sleep" inhibitor, spoken over D-Bus directly
+// Linux sleep backend: systemd-logind "sleep" inhibitor, spoken over D-Bus directly
 // (no libdbus / libsystemd dependency).
 //
 //   org.freedesktop.login1.Manager.Inhibit(what, who, why, mode) -> fd
@@ -306,9 +306,9 @@ bool conn_wait_for_reply(Conn& c, uint32_t serial, ParsedMessage& out,
 
 // ---- backend -------------------------------------------------------------
 
-class LinuxBackend final : public Backend {
+class LinuxSleepBackend final : public Backend {
 public:
-  ~LinuxBackend() override { uninhibit(); }
+  ~LinuxSleepBackend() override { uninhibit(); }
 
   bool inhibit(const std::string& who, const std::string& reason) override {
     if (active_) return true;
@@ -378,10 +378,10 @@ private:
 
 }  // namespace
 
-std::unique_ptr<Backend> make_backend() {
-  return std::make_unique<LinuxBackend>();
+std::unique_ptr<Backend> make_sleep_backend() {
+  return std::make_unique<LinuxSleepBackend>();
 }
 
-const char* backend_name() { return "linux-logind"; }
+const char* sleep_backend_name() { return "linux-logind"; }
 
 }  // namespace woke::detail

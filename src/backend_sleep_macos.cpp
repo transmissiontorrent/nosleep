@@ -1,4 +1,4 @@
-// macOS backend: IOKit power-management assertions.
+// macOS sleep backend: IOKit power-management assertions.
 //
 // kIOPMAssertionTypePreventUserIdleSystemSleep prevents the system from
 // sleeping when the user is idle, which is the desktop "keep awake" behaviour.
@@ -13,9 +13,9 @@ namespace woke::detail {
 
 namespace {
 
-class MacBackend final : public Backend {
+class MacSleepBackend final : public Backend {
 public:
-  ~MacBackend() override { uninhibit(); }
+  ~MacSleepBackend() override { uninhibit(); }
 
   bool inhibit(const std::string& who, const std::string& reason) override {
     if (active_) return true;
@@ -53,10 +53,10 @@ private:
 
 }  // namespace
 
-std::unique_ptr<Backend> make_backend() {
-  return std::make_unique<MacBackend>();
+std::unique_ptr<Backend> make_sleep_backend() {
+  return std::make_unique<MacSleepBackend>();
 }
 
-const char* backend_name() { return "macos"; }
+const char* sleep_backend_name() { return "macos"; }
 
 }  // namespace woke::detail
