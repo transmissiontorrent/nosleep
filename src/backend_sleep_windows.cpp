@@ -1,4 +1,4 @@
-// Windows backend: power request objects.
+// Windows sleep backend: power request objects.
 //
 // PowerCreateRequest + PowerSetRequest(PowerRequestSystemRequired) is the modern
 // replacement for SetThreadExecutionState. We prefer it here for two reasons:
@@ -24,7 +24,7 @@
 
 #include "backend.hpp"
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 namespace {
 
@@ -42,9 +42,9 @@ std::wstring utf8_to_wide(const std::string& text) {
   return wide;
 }
 
-class WindowsBackend final : public Backend {
+class WindowsSleepBackend final : public Backend {
 public:
-  ~WindowsBackend() override { uninhibit(); }
+  ~WindowsSleepBackend() override { uninhibit(); }
 
   bool inhibit(const std::string& who, const std::string& reason) override {
     if (active_) return true;
@@ -93,10 +93,10 @@ private:
 
 }  // namespace
 
-std::unique_ptr<Backend> make_backend() {
-  return std::make_unique<WindowsBackend>();
+std::unique_ptr<Backend> make_sleep_backend() {
+  return std::make_unique<WindowsSleepBackend>();
 }
 
-const char* backend_name() { return "windows"; }
+const char* sleep_backend_name() { return "windows"; }
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail

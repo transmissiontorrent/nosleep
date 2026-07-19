@@ -1,4 +1,4 @@
-// Linux backend: systemd-logind "sleep" inhibitor, spoken over D-Bus directly
+// Linux sleep backend: systemd-logind "sleep" inhibitor, spoken over D-Bus directly
 // (no libdbus / libsystemd dependency).
 //
 //   org.freedesktop.login1.Manager.Inhibit(what, who, why, mode) -> fd
@@ -33,7 +33,7 @@
 #include "backend.hpp"
 #include "dbus_message.hpp"
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 namespace {
 
@@ -126,12 +126,16 @@ bool parse_bus_address(const std::string& address, std::string& path,
   return false;
 }
 
-void resolve_system_bus_address(std::string& path, bool& is_abstract) {
+// Resolve the system-bus socket path. If DBUS_SYSTEM_BUS_ADDRESS is set, honor
+// it or fail -- don't silently fall back to the default socket (a different
+// bus). Returns false if a configured address has no usable unix socket.
+bool resolve_system_bus_address(std::string& path, bool& is_abstract) {
   if (const char* env = std::getenv("DBUS_SYSTEM_BUS_ADDRESS")) {
-    if (parse_bus_address(env, path, is_abstract)) return;
+    return parse_bus_address(env, path, is_abstract);
   }
   path = "/var/run/dbus/system_bus_socket";
   is_abstract = false;
+  return true;
 }
 
 int connect_unix(const std::string& path, bool is_abstract) {
@@ -235,7 +239,6 @@ bool conn_fill(Conn& c) {
     n = ::recvmsg(c.fd, &msg, 0);
   } while (n < 0 && errno == EINTR);
   if (n <= 0) return false;
-  if (msg.msg_flags & MSG_CTRUNC) return false;  // control buffer overflowed
 
   for (cmsghdr* cm = CMSG_FIRSTHDR(&msg); cm != nullptr;
        cm = CMSG_NXTHDR(&msg, cm)) {
@@ -248,6 +251,11 @@ bool conn_fill(Conn& c) {
       }
     }
   }
+
+  // If the control buffer overflowed, the kernel still installed the fds that
+  // fit -- now recorded above so ~Conn closes them -- but a truncated reply
+  // can't be trusted, so fail.
+  if (msg.msg_flags & MSG_CTRUNC) return false;
 
   c.buf.insert(c.buf.end(), bytes, bytes + static_cast<size_t>(n));
   return true;
@@ -306,16 +314,16 @@ bool conn_wait_for_reply(Conn& c, uint32_t serial, ParsedMessage& out,
 
 // ---- backend -------------------------------------------------------------
 
-class LinuxBackend final : public Backend {
+class LinuxSleepBackend final : public Backend {
 public:
-  ~LinuxBackend() override { uninhibit(); }
+  ~LinuxSleepBackend() override { uninhibit(); }
 
   bool inhibit(const std::string& who, const std::string& reason) override {
     if (active_) return true;
 
     std::string path;
     bool is_abstract = false;
-    resolve_system_bus_address(path, is_abstract);
+    if (!resolve_system_bus_address(path, is_abstract)) return false;
 
     Conn conn;
     conn.fd = connect_unix(path, is_abstract);
@@ -336,7 +344,7 @@ public:
     }
 
     // login1.Manager.Inhibit("sleep", who, why, "block") -> file descriptor.
-    const std::string who_field = who.empty() ? "nosleep" : who;
+    const std::string who_field = who.empty() ? "woke" : who;
     const auto call = build_method_call(
         2, "org.freedesktop.login1", "/org/freedesktop/login1",
         "org.freedesktop.login1.Manager", "Inhibit", "ssss",
@@ -378,10 +386,10 @@ private:
 
 }  // namespace
 
-std::unique_ptr<Backend> make_backend() {
-  return std::make_unique<LinuxBackend>();
+std::unique_ptr<Backend> make_sleep_backend() {
+  return std::make_unique<LinuxSleepBackend>();
 }
 
-const char* backend_name() { return "linux-logind"; }
+const char* sleep_backend_name() { return "linux-logind"; }
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail

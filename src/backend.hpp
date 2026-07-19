@@ -1,20 +1,25 @@
-// Internal backend interface. Each platform provides a concrete Backend and an
-// implementation of make_backend(). This header is not installed and is not
-// part of the public API.
+// Internal backend interface. Each platform provides concrete Backends and
+// implementations of the factory functions below. This header is not installed
+// and is not part of the public API.
+//
+// The same Backend interface serves both public types: make_sleep_backend()
+// builds the sleep-prevention backend behind woke::SleepInhibitor, and
+// make_nap_backend() builds the throttle-prevention backend behind
+// woke::NapInhibitor.
 
-#ifndef NOSLEEP_SRC_BACKEND_HPP
-#define NOSLEEP_SRC_BACKEND_HPP
+#ifndef WOKE_SRC_BACKEND_HPP
+#define WOKE_SRC_BACKEND_HPP
 
 #include <memory>
 #include <string>
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 class Backend {
 public:
   virtual ~Backend() = default;
 
-  // Begin inhibiting sleep. Returns true on success.
+  // Begin inhibiting. Returns true on success.
   // Implementations must be idempotent: calling inhibit() while already active
   // returns true without creating a second OS request.
   // `who` identifies the application;
@@ -27,10 +32,17 @@ public:
   virtual bool active() const noexcept = 0;
 };
 
-[[nodiscard]] std::unique_ptr<Backend> make_backend();
+// Sleep-prevention backend (keep the machine awake).
+[[nodiscard]] std::unique_ptr<Backend> make_sleep_backend();
 
-// backend_name() returns a static id ("windows" / "macos" / "linux-logind").
-[[nodiscard]] const char* backend_name();
+// sleep_backend_name() returns a static id ("windows" / "macos" / "linux-logind").
+[[nodiscard]] const char* sleep_backend_name();
+
+// Nap-prevention backend (keep this process un-throttled / responsive).
+[[nodiscard]] std::unique_ptr<Backend> make_nap_backend();
+
+// nap_backend_name() returns a static id ("macos" / "windows" / "linux-none").
+[[nodiscard]] const char* nap_backend_name();
 
 // Fold an application identity and a reason into a single human-readable label
 // ("who: reason"), for the platforms that expose only one string slot.
@@ -39,10 +51,10 @@ public:
   std::string label = who;
   if (!who.empty() && !reason.empty()) label += ": ";
   label += reason;
-  if (label.empty()) label = "nosleep";
+  if (label.empty()) label = "woke";
   return label;
 }
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail
 
-#endif  // NOSLEEP_SRC_BACKEND_HPP
+#endif  // WOKE_SRC_BACKEND_HPP

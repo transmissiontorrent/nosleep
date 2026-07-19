@@ -1,4 +1,4 @@
-// macOS backend: IOKit power-management assertions.
+// macOS sleep backend: IOKit power-management assertions.
 //
 // kIOPMAssertionTypePreventUserIdleSystemSleep prevents the system from
 // sleeping when the user is idle, which is the desktop "keep awake" behaviour.
@@ -9,13 +9,13 @@
 
 #include "backend.hpp"
 
-namespace nosleep::detail {
+namespace woke::detail {
 
 namespace {
 
-class MacBackend final : public Backend {
+class MacSleepBackend final : public Backend {
 public:
-  ~MacBackend() override { uninhibit(); }
+  ~MacSleepBackend() override { uninhibit(); }
 
   bool inhibit(const std::string& who, const std::string& reason) override {
     if (active_) return true;
@@ -24,8 +24,15 @@ public:
     // application identity and the reason into one label.
     const std::string name = combine_label(who, reason);
 
+    // The label is cosmetic (it shows in `pmset -g assertions`), so a label
+    // that isn't valid UTF-8 must not prevent the assertion: fall back to the
+    // library name, matching the nap backend.
     CFStringRef cf_name = CFStringCreateWithCString(
         kCFAllocatorDefault, name.c_str(), kCFStringEncodingUTF8);
+    if (cf_name == nullptr) {
+      cf_name = CFStringCreateWithCString(kCFAllocatorDefault, "woke",
+                                          kCFStringEncodingUTF8);
+    }
     if (cf_name == nullptr) return false;
 
     const IOReturn result = IOPMAssertionCreateWithName(
@@ -53,10 +60,10 @@ private:
 
 }  // namespace
 
-std::unique_ptr<Backend> make_backend() {
-  return std::make_unique<MacBackend>();
+std::unique_ptr<Backend> make_sleep_backend() {
+  return std::make_unique<MacSleepBackend>();
 }
 
-const char* backend_name() { return "macos"; }
+const char* sleep_backend_name() { return "macos"; }
 
-}  // namespace nosleep::detail
+}  // namespace woke::detail

@@ -1,64 +1,72 @@
-# nosleep
+# libwoke
 
-A tiny, dependency-free C++ library to keep a desktop machine awake — it inhibits
-automatic sleep / suspend / hibernation and releases the inhibition on request.
+A tiny, dependency-free C++17 library to keep a desktop **awake and responsive**
+on Windows, macOS, and Linux. Two independent RAII inhibitors:
 
-- **No third-party dependencies.** Each backend uses only what the operating
-  system already provides.
-- **Cross-platform:** Windows, macOS, and Linux.
-- **CMake + CTest**, with CI on GitHub-hosted Windows, macOS, and Linux runners.
+- **`woke::SleepInhibitor`**: keep the machine from auto-sleeping (suspend / hibernation).
+- **`woke::NapInhibitor`**: keep *this process* from being throttled when idle (macOS "App Nap", Windows power throttling).
+
+Use either or both; each holds an OS request while alive and releases it when destroyed.
+
+## Quick start
+
+```cpp
+#include <woke/woke.hpp>
+
+woke::SleepInhibitor sleep;
+woke::NapInhibitor nap;
+
+sleep.inhibit("MyApp", "Transferring files");   // keep the machine awake
+nap.inhibit("MyApp", "Transferring files");     // keep this process un-throttled
+
+// ... do the work ...
+// Both release automatically at end of scope, or call uninhibit().
+```
+
+> **Keeps the machine awake, not the screen.** `SleepInhibitor` stops the
+> computer from *sleeping* but lets the display turn off and the screensaver
+> run (the right behavior for background work like downloads, backups).
 
 ## API
 
-The entire public API is the RAII type `nosleep::Inhibitor`:
-
-```cpp
-#include <nosleep/nosleep.hpp>
-
-int main() {
-    nosleep::Inhibitor inhibitor;
-
-    if (inhibitor.inhibit("MyApp", "Encoding a video")) {
-        // ... do work that should not be interrupted by sleep ...
-    }
-
-    inhibitor.uninhibit();   // or just let `inhibitor` go out of scope
-}
-```
+Both types have the same shape: movable, not copyable:
 
 | Member | Description |
 | --- | --- |
-| `bool inhibit(who, reason = ...)` | Ask the OS to prevent automatic sleep. `who` identifies your app; `reason` explains why. Returns `true` if active. Idempotent. |
-| `void uninhibit() noexcept` | Release the request. Safe to call when inactive. |
-| `bool active() const noexcept` | Whether a request is currently held. |
-| `static const char* backend_name()` | `"windows"`, `"macos"`, or `"linux-logind"`. |
+| `bool inhibit(who, reason = …)` | Start inhibiting. `who` names your app, `reason` says why (both shown by the OS). Returns `true` if active. |
+| `void uninhibit()` | Release. Safe to call when not active. |
+| `bool active()` | Whether a request is held. |
+| `static const char* backend_name()` | Diagnostic id of the compiled-in backend. |
 
-`who` and `reason` are surfaced differently per platform: Linux uses them as
-logind's separate `who` / `why` fields; macOS and Windows combine them into a
-single `"who: reason"` string — the IOPMAssertion name and the power-request
-reason respectively.
+- **A `false` from `inhibit()` is best-effort, not an error**: proceed, but don't assume the machine stays awake. It's the *normal* result on Linux without logind (headless, containers, non-systemd) and, for `NapInhibitor`, on Windows older than 10 1709. Only `inhibit()` can throw (on allocation); the rest are `noexcept`.
+- **Idempotent:** calling `inhibit()` again while active returns `true` but keeps the original `who`/`reason`. To change them, `uninhibit()` first.
+- **Thread safety:** don't call one object's methods concurrently from multiple threads; using *distinct* objects from different threads is fine (the process-global Windows nap policy is internally synchronized).
 
-`Inhibitor` is movable but not copyable; the OS request follows the object and
-is released automatically by the destructor.
+## Platforms
 
-## How it works
+Each type selects one backend at compile time. Inspect a live sleep inhibitor
+with `systemd-inhibit --list` (Linux), `pmset -g assertions` (macOS), or
+`powercfg /requests` (Windows).
 
-| Platform | Mechanism |
-| --- | --- |
-| Windows | [`PowerCreateRequest`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-powercreaterequest) + `PowerSetRequest(PowerRequestSystemRequired)`; the reason is visible in `powercfg /requests`. |
-| macOS | IOKit [`IOPMAssertionCreateWithName`](https://developer.apple.com/documentation/iokit) (`kIOPMAssertionTypePreventUserIdleSystemSleep`). |
-| Linux | Speaks the D-Bus wire protocol directly over the **system** bus (no `libdbus`) and calls [`org.freedesktop.login1.Manager.Inhibit`](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html) with `what="sleep"`, `mode="block"`. |
+**`SleepInhibitor`**
 
-On Linux this is the same mechanism as `systemd-inhibit --what=sleep`. It
-prevents automatic suspend/hibernation while **leaving the screensaver and
-display-blanking untouched** — the right behaviour for a background task such as
-a network transfer. logind returns a file descriptor and holds the lock until it
-is closed, so the library keeps that descriptor open while active. The interface
-is served by systemd-logind, or by the compatible `elogind` on non-systemd
-distributions; if neither is reachable, `inhibit()` returns `false`.
+| Platform | Mechanism | `backend_name()` |
+| --- | --- | --- |
+| Linux | logind `Inhibit` (`org.freedesktop.login1`, `what="sleep"`) over the system bus, no `libdbus`; needs systemd-logind or elogind. | `"linux-logind"` |
+| macOS | IOKit `IOPMAssertionCreateWithName(…PreventUserIdleSystemSleep)`. | `"macos"` |
+| Windows | `PowerCreateRequest` + `PowerSetRequest(PowerRequestSystemRequired)` (Windows 7+). | `"windows"` |
 
-You can see an active inhibitor with `systemd-inhibit --list` (look for the
-`sleep` / `block` row belonging to your process).
+**`NapInhibitor`**
+
+| Platform | Mechanism | `backend_name()` |
+| --- | --- | --- |
+| macOS | `NSProcessInfo` activity (`NSActivityUserInitiatedAllowingIdleSystemSleep`). | `"macos"` |
+| Windows | `SetProcessInformation(ProcessPowerThrottling)` opt-out (Windows 10 1709+); concurrent inhibitors are reference-counted. | `"windows"` |
+| Linux | No-op (a normal process isn't app-napped); `inhibit()` still returns `true`. | `"linux-none"` |
+
+## Notes
+
+- **Labels are cosmetic UTF-8.** Keep `who` / `reason` short and NUL-free. An interior NUL or invalid UTF-8 is truncated (macOS/Windows) or makes `inhibit()` return `false` (Linux, which passes it to D-Bus).
 
 ## Building
 
@@ -68,29 +76,16 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-### Options
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `NOSLEEP_BUILD_TESTS` | `ON` | Build the CTest suite. |
-| `NOSLEEP_BUILD_EXAMPLES` | `ON` | Build the `nosleep_example` demo. |
-
-### Using it from CMake
-
-`nosleep` can be vendored (e.g. via `add_subdirectory` or `FetchContent`) and
-linked through the exported alias:
+Vendor it (`add_subdirectory` or `FetchContent`) and link the alias:
 
 ```cmake
-add_subdirectory(nosleep)
-target_link_libraries(my_app PRIVATE nosleep::nosleep)
+add_subdirectory(woke)
+target_link_libraries(my_app PRIVATE woke::woke)
 ```
 
-## Try the example
-
-```sh
-./build/examples/nosleep_example 15   # stay awake for 15 seconds
-```
+Options `WOKE_BUILD_TESTS` / `WOKE_BUILD_EXAMPLES` (both `ON`). Demo:
+`./build/examples/woke_example 15`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
