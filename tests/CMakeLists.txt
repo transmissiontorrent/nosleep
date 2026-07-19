@@ -16,7 +16,8 @@ set(_inhibitor_cases
   lifecycle
   reinhibit
   idempotent
-  move_semantics)
+  move_semantics
+  move_assign)
 foreach(case IN LISTS _inhibitor_cases)
   add_test(NAME sleep.${case} COMMAND woke_tests sleep_${case})
   add_test(NAME nap.${case}   COMMAND woke_tests nap_${case})

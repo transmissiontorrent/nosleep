@@ -118,6 +118,23 @@ void test_move_semantics() {
   CHECK(!moved.active());
 }
 
+template <class Inhibitor>
+void test_move_assign() {
+  Inhibitor source;
+  source.inhibit("woke_tests", "source");
+  const bool was_active = source.active();
+
+  Inhibitor target;
+  target.inhibit("woke_tests", "target");  // target holds its own resource
+  target = std::move(source);              // must release target's old resource
+  CHECK(target.active() == was_active);
+
+  source.uninhibit();  // moved-from object stays safe to use
+  CHECK(!source.active());
+  target.uninhibit();
+  CHECK(!target.active());
+}
+
 // Nap inhibitors have independent lifetimes: releasing one must not disturb
 // another's held state. (The Windows backend shares a process-global policy via
 // a refcount, but that policy isn't observable from userspace, so this asserts
@@ -149,6 +166,7 @@ int main(int argc, char** argv) {
       {"sleep_reinhibit", [] { test_reinhibit<Sleep>(kSleepMustSucceed); }},
       {"sleep_idempotent", [] { test_idempotent<Sleep>(kSleepMustSucceed); }},
       {"sleep_move_semantics", [] { test_move_semantics<Sleep>(); }},
+      {"sleep_move_assign", [] { test_move_assign<Sleep>(); }},
       {"nap_backend_name", [] { test_backend_name<Nap>(); }},
       {"nap_construct_destruct", [] { test_construct_destruct<Nap>(); }},
       {"nap_uninhibit_without_inhibit", [] { test_uninhibit_without_inhibit<Nap>(); }},
@@ -156,6 +174,7 @@ int main(int argc, char** argv) {
       {"nap_reinhibit", [] { test_reinhibit<Nap>(kNapMustSucceed); }},
       {"nap_idempotent", [] { test_idempotent<Nap>(kNapMustSucceed); }},
       {"nap_move_semantics", [] { test_move_semantics<Nap>(); }},
+      {"nap_move_assign", [] { test_move_assign<Nap>(); }},
       {"nap_independence", [] { test_nap_independence(); }},
   });
 }
