@@ -20,7 +20,7 @@ foreach(case IN LISTS _inhibitor_cases)
   add_test(NAME sleep.${case} COMMAND woke_tests sleep_${case})
   add_test(NAME nap.${case}   COMMAND woke_tests nap_${case})
 endforeach()
-add_test(NAME nap.compose COMMAND woke_tests nap_compose)
+add_test(NAME nap.independence COMMAND woke_tests nap_independence)
 
 # ---- Linux D-Bus marshalling unit tests ----------------------------------
 # These exercise the wire-format code directly (it can't be reached through the
