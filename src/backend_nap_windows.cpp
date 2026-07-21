@@ -13,8 +13,22 @@
 // count is > 0 the opt-out is applied. The call needs Windows 10 1709+; on
 // older systems SetProcessInformation() fails and inhibit() returns false.
 
+// A parent project embedding woke may inject an older Windows floor into the
+// global compile flags (e.g. -D_WIN32_WINNT=0x0600), which would hide the
+// SetProcessInformation declaration and the power throttling types. This TU
+// needs the Windows 10 SDK surface; raising the macros here is local to this
+// file and does not affect the parent's own floor (the API is still resolved
+// at runtime below).
+#if defined(_WIN32_WINNT) && (_WIN32_WINNT < 0x0A00)
+#undef _WIN32_WINNT
+#undef WINVER
+#undef NTDDI_VERSION
+#endif
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0A00  // Windows 10
+#endif
+#ifndef WINVER
+#define WINVER 0x0A00
 #endif
 #ifndef NTDDI_VERSION
 #define NTDDI_VERSION 0x0A000004  // NTDDI_WIN10_RS3 (1709): ProcessPowerThrottling

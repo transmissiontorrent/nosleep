@@ -11,8 +11,19 @@
 // PowerRequestSystemRequired prevents automatic idle sleep -- the same level as
 // the old ES_SYSTEM_REQUIRED -- while leaving the display / screensaver alone.
 
+// A parent project embedding woke may inject an older Windows floor into the
+// global compile flags (e.g. -D_WIN32_WINNT=0x0600), which would hide the
+// power request declarations. This TU needs Windows 7; raising the macro here
+// is local to this file and does not affect the parent's own floor.
+#if defined(_WIN32_WINNT) && (_WIN32_WINNT < 0x0601)
+#undef _WIN32_WINNT
+#undef WINVER
+#endif
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0601  // Windows 7: PowerCreateRequest and friends
+#endif
+#ifndef WINVER
+#define WINVER 0x0601
 #endif
 #ifndef NOMINMAX
 #define NOMINMAX  // keep <windows.h> from defining min()/max() macros that
