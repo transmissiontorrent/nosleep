@@ -10,8 +10,10 @@
 // handle, so concurrent NapInhibitors are reference-counted here. Both the
 // count transition and the OS call are done under one mutex, so the policy
 // stays consistent with the count under concurrent inhibit/uninhibit: while the
-// count is > 0 the opt-out is applied. The call needs Windows 10 1709+; on
-// older systems SetProcessInformation() fails and inhibit() returns false.
+// count is > 0 the opt-out is applied. The policy needs Windows 10 1709+, so
+// SetProcessInformation() is resolved at runtime: merely linking this backend
+// never raises a consumer binary's OS floor, and on older systems the symbol
+// is absent or the call fails and inhibit() returns false.
 
 // A parent project embedding woke may inject an older Windows floor into the
 // global compile flags (e.g. -D_WIN32_WINNT=0x0600), which would hide the
@@ -53,12 +55,28 @@ namespace {
 std::mutex g_nap_mutex;
 int g_nap_refcount = 0;
 
+// SetProcessInformation() is a Windows 8+ export; import it at runtime so that
+// binaries linking this backend still load on older Windows. (The cast goes
+// through void* to sidestep -Wcast-function-type on FARPROC.)
+using SetProcessInformationFn = BOOL(WINAPI*)(HANDLE, PROCESS_INFORMATION_CLASS,
+                                              LPVOID, DWORD);
+
+SetProcessInformationFn get_set_process_information() {
+  static const auto fn = reinterpret_cast<SetProcessInformationFn>(
+      reinterpret_cast<void*>(::GetProcAddress(
+          ::GetModuleHandleW(L"kernel32.dll"), "SetProcessInformation")));
+  return fn;
+}
+
 bool apply_throttling_policy(bool opt_out) {
+  const auto set_process_information = get_set_process_information();
+  if (set_process_information == nullptr) return false;
+
   PROCESS_POWER_THROTTLING_STATE state = {};
   state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
   state.ControlMask = opt_out ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
   state.StateMask = 0;  // 0 => opt out (high performance) / reset to default
-  return ::SetProcessInformation(::GetCurrentProcess(), ProcessPowerThrottling,
+  return set_process_information(::GetCurrentProcess(), ProcessPowerThrottling,
                                  &state, sizeof(state)) != 0;
 }
 
