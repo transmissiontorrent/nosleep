@@ -20,8 +20,14 @@ if(WIN32)
     src/backend_sleep_windows.cpp
     src/backend_nap_windows.cpp)
 elseif(APPLE)
-  # The nap backend is Objective-C++ (NSProcessInfo), so enable OBJC++.
-  enable_language(OBJCXX)
+  # The nap backend is Objective-C++ (NSProcessInfo). Deliberately do NOT
+  # enable_language(OBJCXX) for it: enabled languages are global to the whole
+  # build, but the OBJCXX rule variables would exist only in this directory's
+  # scope, so a parent project embedding woke via add_subdirectory() would see
+  # its own *.mm sources reclassified from CXX to OBJCXX and fail to generate
+  # ("Missing variable is: CMAKE_OBJCXX_COMPILE_OBJECT"). CMake lists `mm` in
+  # CMAKE_CXX_SOURCE_FILE_EXTENSIONS, so the file compiles under the CXX rules
+  # and clang picks Objective-C++ from the file extension.
   list(APPEND _woke_platform_sources
     src/backend_sleep_macos.cpp
     src/backend_nap_macos.mm)
